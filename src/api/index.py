@@ -91,50 +91,46 @@ VALID_API_KEY = os.getenv("API_KEY", "test-api-key-12345")
 async def validate_api_key(request: Request, call_next):
     """
     Middleware to validate API key in x-api-key header.
-    
+
     In production, API Gateway validates the API key before reaching Lambda.
     This middleware simulates that behavior for testing.
     """
     # Skip authentication for health endpoint and docs
     if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
         return await call_next(request)
-    
+
     # Only check API key if enabled (for testing)
     if ENABLE_API_KEY_CHECK:
         api_key = request.headers.get("x-api-key")
-        
+
         if not api_key:
             logger.warning(
-                "Missing API key",
-                extra={"path": request.url.path, "method": request.method}
+                "Missing API key", extra={"path": request.url.path, "method": request.method}
             )
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
                     "error": "Forbidden",
-                    "message": "Missing API Key. Include x-api-key header."
+                    "message": "Missing API Key. Include x-api-key header.",
                 },
             )
-        
+
         if api_key != VALID_API_KEY:
             logger.warning(
                 "Invalid API key",
                 extra={
                     "path": request.url.path,
                     "method": request.method,
-                    "api_key_provided": api_key[:8] + "..." if len(api_key) > 8 else api_key
-                }
+                    "api_key_provided": api_key[:8] + "..." if len(api_key) > 8 else api_key,
+                },
             )
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
-                content={
-                    "error": "Forbidden",
-                    "message": "Invalid API Key."
-                },
+                content={"error": "Forbidden", "message": "Invalid API Key."},
             )
-        
+
         logger.debug("API key validated", extra={"path": request.url.path})
-    
+
     return await call_next(request)
 
 
@@ -142,13 +138,9 @@ async def validate_api_key(request: Request, call_next):
 # Exception Handlers
 # ========================================
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_exception_handler(request, exc: RequestValidationError) -> JSONResponse:
     """Handle validation errors with proper error messages."""
-    logger.warning(
-        "Validation error", extra={"path": request.url.path, "errors": exc.errors()}
-    )
+    logger.warning("Validation error", extra={"path": request.url.path, "errors": exc.errors()})
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={
@@ -319,12 +311,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(
         "Lambda invocation",
         extra={
-            "request_id": (
-                context.request_id if hasattr(context, "request_id") else None
-            ),
-            "function_name": (
-                context.function_name if hasattr(context, "function_name") else None
-            ),
+            "request_id": (context.request_id if hasattr(context, "request_id") else None),
+            "function_name": (context.function_name if hasattr(context, "function_name") else None),
         },
     )
 

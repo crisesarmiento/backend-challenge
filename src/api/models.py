@@ -11,15 +11,9 @@ class TaskCreate(BaseModel):
     """Model for creating a new task."""
 
     title: str = Field(..., min_length=1, max_length=200, description="Task title")
-    description: str = Field(
-        ..., min_length=1, max_length=2000, description="Task description"
-    )
-    priority: Literal["low", "medium", "high"] = Field(
-        ..., description="Task priority level"
-    )
-    due_date: Optional[str] = Field(
-        None, description="ISO 8601 timestamp for task due date"
-    )
+    description: str = Field(..., min_length=1, max_length=2000, description="Task description")
+    priority: Literal["low", "medium", "high"] = Field(..., description="Task priority level")
+    due_date: Optional[str] = Field(None, description="ISO 8601 timestamp for task due date")
 
     @field_validator("title", "description")
     @classmethod
@@ -61,12 +55,8 @@ class TaskResponse(BaseModel):
     task_id: str = Field(..., description="Unique task identifier")
     title: str = Field(..., description="Task title")
     description: str = Field(..., description="Task description")
-    priority: Literal["low", "medium", "high"] = Field(
-        ..., description="Task priority level"
-    )
-    due_date: Optional[str] = Field(
-        None, description="ISO 8601 timestamp for task due date"
-    )
+    priority: Literal["low", "medium", "high"] = Field(..., description="Task priority level")
+    due_date: Optional[str] = Field(None, description="ISO 8601 timestamp for task due date")
     created_at: str = Field(..., description="ISO 8601 timestamp when task was created")
     status: str = Field(default="queued", description="Current task status")
 

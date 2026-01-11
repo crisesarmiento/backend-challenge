@@ -62,9 +62,7 @@ def clear_processed_tasks():
 
 
 @pytest.mark.unit
-def test_lambda_handler_success(
-    sqs_event: Dict[str, Any], lambda_context: MagicMock
-) -> None:
+def test_lambda_handler_success(sqs_event: Dict[str, Any], lambda_context: MagicMock) -> None:
     """Test successful task processing."""
     result = index.lambda_handler(sqs_event, lambda_context)
 

@@ -12,7 +12,8 @@ import pytest
 # This is required because src/api/index validates QUEUE_URL at module load time
 # The actual mock SQS queue URL from the fixture will be used during test execution
 os.environ.setdefault(
-    "QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123456789012/dummy-queue.fifo")
+    "QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123456789012/dummy-queue.fifo"
+)
 
 from moto.core.decorator import mock_aws
 import boto3
@@ -86,9 +87,7 @@ def test_health_endpoint(client: TestClient) -> None:
 
 
 @pytest.mark.unit
-def test_create_task_success(
-    client: TestClient, valid_task_data: Dict[str, Any]
-) -> None:
+def test_create_task_success(client: TestClient, valid_task_data: Dict[str, Any]) -> None:
     """Test successful task creation."""
     with mock_aws():
         response = client.post("/tasks", json=valid_task_data)

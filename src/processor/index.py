@@ -145,12 +145,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(
         "Lambda invocation started",
         extra={
-            "request_id": (
-                context.request_id if hasattr(context, "request_id") else None
-            ),
-            "function_name": (
-                context.function_name if hasattr(context, "function_name") else None
-            ),
+            "request_id": (context.request_id if hasattr(context, "request_id") else None),
+            "function_name": (context.function_name if hasattr(context, "function_name") else None),
             "remaining_time_ms": (
                 context.get_remaining_time_in_millis()
                 if hasattr(context, "get_remaining_time_in_millis")
@@ -183,12 +179,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 extra={
                     "message_id": message_id,
                     "task_id": task_id,
-                    "message_group_id": record.get("attributes", {}).get(
-                        "MessageGroupId"
-                    ),
-                    "sequence_number": record.get("attributes", {}).get(
-                        "SequenceNumber"
-                    ),
+                    "message_group_id": record.get("attributes", {}).get("MessageGroupId"),
+                    "sequence_number": record.get("attributes", {}).get("SequenceNumber"),
                 },
             )
 
