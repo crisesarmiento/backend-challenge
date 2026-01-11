@@ -28,8 +28,17 @@ jobs:
           cache: 'npm'
           cache-dependency-path: cdk/package-lock.json
 
-      - name: Make validation script executable
-        run: chmod +x validate.sh
+      - name: Make scripts executable
+        run: |
+          chmod +x setup.sh
+          chmod +x validate.sh
+
+      - name: Run setup script
+        run: ./setup.sh
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
 
       - name: Run validation script
         run: ./validate.sh
