@@ -1,5 +1,8 @@
 # Task Management API - Backend Challenge
 
+[![CI/CD Pipeline](https://github.com/crisesarmiento/backend-challenge/actions/workflows/ci.yml/badge.svg)](https://github.com/crisesarmiento/backend-challenge/actions/workflows/ci.yml)
+[![Validation](https://github.com/crisesarmiento/backend-challenge/actions/workflows/validate.yml/badge.svg)](https://github.com/crisesarmiento/backend-challenge/actions/workflows/validate.yml)
+
 A serverless task management system built with AWS CDK, featuring ordered message processing, comprehensive error handling, and production-ready architecture.
 
 ## 📋 Table of Contents
@@ -545,15 +548,78 @@ Current test coverage: **90%+**
 6. **No Hardcoded Secrets**: All configuration via environment variables
 7. **X-Ray Tracing**: Enabled for security monitoring and debugging
 
-### Production Recommendations
+### Bonus Features Implemented ✅
 
-- ✅ **API authentication implemented** - API Gateway API keys with rate limiting
-- ✅ **Rate limiting implemented** - 100 req/sec with 200 burst limit
+From challenge requirements, **3 out of 4 bonus features** have been implemented:
+
+1. ✅ **API Authentication** - API Gateway API keys with x-api-key header
+2. ✅ **Rate Limiting & Throttling** - 100 req/sec, 200 burst, 10K daily quota
+3. ✅ **CI/CD Pipeline** - GitHub Actions with automated testing and validation
+4. ⬜ Comprehensive monitoring and observability (CloudWatch Logs + X-Ray enabled)
+
+### Additional Production Recommendations
+
 - Consider upgrading to AWS Cognito for user-based authentication
 - Add request validation at API Gateway level
 - Enable AWS WAF for API Gateway
 - Implement encryption at rest for SQS queues
-- Add CloudWatch alarms for DLQ depth
+- Add CloudWatch alarms for DLQ depth and API errors
+- Add custom CloudWatch metrics and dashboards
+
+---
+
+## 🔄 CI/CD Pipeline (Bonus Feature)
+
+This project includes a **GitHub Actions CI/CD pipeline** that automatically validates all changes.
+
+### Workflows
+
+#### 1. **CI/CD Pipeline** (`.github/workflows/ci.yml`)
+
+Comprehensive testing and validation on every push and pull request:
+
+- ✅ **Multi-version testing** - Python 3.12, Node.js 18
+- ✅ **Unit tests** - All 35 tests with coverage reporting
+- ✅ **Type checking** - pyright validation
+- ✅ **Code formatting** - black compliance check
+- ✅ **CDK validation** - Infrastructure synthesis
+- ✅ **CDK tests** - Infrastructure unit tests
+- ✅ **Coverage reports** - Uploaded to Codecov
+
+#### 2. **Validation Workflow** (`.github/workflows/validate.yml`)
+
+Simple validation using the project's `validate.sh` script:
+
+- ✅ Runs complete validation suite
+- ✅ Same checks as local development
+- ✅ Fast feedback on changes
+
+### Status Badges
+
+The status badges at the top of this README show the current build status:
+- **CI/CD Pipeline** - Comprehensive test suite
+- **Validation** - Quick validation check
+
+### Triggers
+
+Both workflows run automatically on:
+- Push to `main` or `development` branches
+- Pull requests to `main` or `development` branches
+
+### Local Development
+
+The CI/CD pipeline mirrors local development:
+
+```bash
+# What CI/CD runs is identical to:
+./validate.sh
+
+# Or step by step:
+pytest -v
+pyright src/
+black --check src/ tests/
+cd cdk && npm run cdk synth
+```
 
 ---
 
@@ -635,9 +701,10 @@ pyright src/
 - [x] Proper logging
 
 ### Testing ✅
-- [x] Unit tests for all business logic (29 tests)
+- [x] Unit tests for all business logic (35 tests)
 - [x] Integration tests with mocked AWS services (moto)
 - [x] 90%+ test coverage
+- [x] Automated testing via GitHub Actions CI/CD
 
 ### Security ✅
 - [x] Input validation and sanitization
