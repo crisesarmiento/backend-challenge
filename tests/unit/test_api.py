@@ -7,7 +7,14 @@ from typing import Dict, Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-from moto import mock_aws
+
+# ✅ SET QUEUE_URL BEFORE IMPORTING APPLICATION CODE
+# This is required because src/api/index validates QUEUE_URL at module load time
+# The actual mock SQS queue URL from the fixture will be used during test execution
+os.environ.setdefault(
+    "QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123456789012/dummy-queue.fifo")
+
+from moto.core.decorator import mock_aws
 import boto3
 from fastapi.testclient import TestClient
 
@@ -317,7 +324,7 @@ def test_create_task_validates_json_content_type(client: TestClient) -> None:
     """Test that API expects JSON content type."""
     # Send invalid JSON
     response = client.post(
-        "/tasks", data="not json", headers={"Content-Type": "application/json"}
+        "/tasks", content=b"not json", headers={"Content-Type": "application/json"}
     )
 
     # Should fail validation since content is not valid JSON
