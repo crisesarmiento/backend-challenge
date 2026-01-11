@@ -361,3 +361,111 @@ def test_create_task_valid_iso8601_with_timezone(client: TestClient) -> None:
         response = client.post("/tasks", json=task_data)
 
         assert response.status_code == 201
+
+
+# ========================================
+# API Authentication Tests (Bonus Feature)
+# ========================================
+@pytest.fixture
+def authenticated_client(sqs_queue: str) -> TestClient:
+    """Create FastAPI test client with API key authentication enabled."""
+    os.environ["QUEUE_URL"] = sqs_queue
+    os.environ["LOG_LEVEL"] = "ERROR"
+    os.environ["ENABLE_API_KEY_CHECK"] = "true"
+    os.environ["API_KEY"] = "test-api-key-12345"
+
+    importlib.reload(index)
+    return TestClient(index.app)
+
+
+@pytest.mark.unit
+def test_create_task_missing_api_key(
+    authenticated_client: TestClient, valid_task_data: Dict[str, Any]
+) -> None:
+    """Test that request without API key is rejected."""
+    with mock_aws():
+        response = authenticated_client.post("/tasks", json=valid_task_data)
+
+        assert response.status_code == 403
+        data = response.json()
+        assert "error" in data
+        assert "Missing API Key" in data["message"]
+
+
+@pytest.mark.unit
+def test_create_task_invalid_api_key(
+    authenticated_client: TestClient, valid_task_data: Dict[str, Any]
+) -> None:
+    """Test that request with invalid API key is rejected."""
+    with mock_aws():
+        response = authenticated_client.post(
+            "/tasks",
+            json=valid_task_data,
+            headers={"x-api-key": "invalid-key-12345"},
+        )
+
+        assert response.status_code == 403
+        data = response.json()
+        assert "error" in data
+        assert "Invalid API Key" in data["message"]
+
+
+@pytest.mark.unit
+def test_create_task_valid_api_key(
+    authenticated_client: TestClient, valid_task_data: Dict[str, Any]
+) -> None:
+    """Test that request with valid API key succeeds."""
+    with mock_aws():
+        response = authenticated_client.post(
+            "/tasks",
+            json=valid_task_data,
+            headers={"x-api-key": "test-api-key-12345"},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert "task_id" in data
+        assert data["status"] == "queued"
+
+
+@pytest.mark.unit
+def test_health_endpoint_no_api_key_required(authenticated_client: TestClient) -> None:
+    """Test that health endpoint doesn't require API key."""
+    response = authenticated_client.get("/health")
+
+    # Health endpoint should work without API key
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+
+
+@pytest.mark.unit
+def test_docs_endpoint_no_api_key_required(authenticated_client: TestClient) -> None:
+    """Test that docs endpoint doesn't require API key."""
+    response = authenticated_client.get("/docs")
+
+    # Docs endpoint should work without API key
+    assert response.status_code == 200
+
+
+@pytest.mark.unit
+def test_api_key_validation_only_on_protected_endpoints(
+    authenticated_client: TestClient, valid_task_data: Dict[str, Any]
+) -> None:
+    """Test that API key is only required for protected endpoints."""
+    with mock_aws():
+        # Health should work without key
+        health_response = authenticated_client.get("/health")
+        assert health_response.status_code == 200
+
+        # Tasks endpoint should require key
+        tasks_response = authenticated_client.post("/tasks", json=valid_task_data)
+        assert tasks_response.status_code == 403
+
+        # Tasks with valid key should work
+        tasks_with_key = authenticated_client.post(
+            "/tasks",
+            json=valid_task_data,
+            headers={"x-api-key": "test-api-key-12345"},
+        )
+        assert tasks_with_key.status_code == 201

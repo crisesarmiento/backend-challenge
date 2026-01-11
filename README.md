@@ -34,7 +34,7 @@ source venv/bin/activate
 **What this does:**
 - ✅ Sets up Python virtual environment
 - ✅ Installs all dependencies (Python + Node.js)
-- ✅ Runs 29 unit tests
+- ✅ Runs 35 unit tests (including 6 authentication tests)
 - ✅ Type checks all code
 - ✅ Validates CDK infrastructure
 
@@ -73,6 +73,7 @@ This solution implements a serverless task management API with guaranteed messag
 - ✅ **At-Least-Once Delivery**: SQS guarantees with visibility timeout and retry logic
 - ✅ **Error Handling**: Dead letter queue captures failed tasks after 3 retry attempts
 - ✅ **Idempotency**: Content-based deduplication prevents duplicate task processing
+- ✅ **API Key Authentication**: API Gateway API key authentication with rate limiting (Bonus Feature)
 - ✅ **Least Privilege IAM**: Granular permissions for each component
 - ✅ **Observability**: CloudWatch Logs + X-Ray tracing enabled
 
@@ -232,7 +233,7 @@ pytest --cov=src --cov-report=term-missing
 ```
 
 **Expected Output:**
-- ✅ 29 tests passing (20 API + 9 Processor)
+- ✅ 35 tests passing (26 API + 9 Processor)
 - ✅ 90%+ code coverage
 
 ### Run Type Checking
@@ -340,6 +341,27 @@ black src/ tests/
 - Follows AWS security best practices
 - Reduces attack surface if Lambda is compromised
 
+### 7. API Key Authentication (Bonus Feature)
+
+**Decision:** Implement API Gateway API key authentication with usage plan.
+
+**Rationale:**
+- Provides production-ready authentication without additional infrastructure
+- API Gateway handles authentication before Lambda invocation (no Lambda cost for unauthorized requests)
+- Usage plan provides built-in rate limiting and quotas (100 req/sec, 10K/day)
+- Simple to implement and manage through AWS Console or CLI
+
+**Trade-offs:**
+- API keys are less sophisticated than OAuth2 or JWT tokens
+- Single key for all users (production would use Cognito for user-level auth)
+- Acceptable for internal APIs or B2B integrations
+- Easy to rotate keys through AWS API Gateway
+
+**Testing Approach:**
+- FastAPI middleware simulates API Gateway behavior for unit tests
+- In production deployment, API Gateway validates keys before Lambda execution
+- Test coverage includes missing, invalid, and valid API key scenarios
+
 ---
 
 ## 📦 Deployment
@@ -359,8 +381,12 @@ npx cdk deploy
 
 # Outputs will include:
 # - API Gateway endpoint URL
+# - API Key ID (use AWS CLI to retrieve actual key value)
 # - SQS queue URLs
 # - Lambda function ARNs
+
+# After deployment, retrieve the API key value
+aws apigateway get-api-keys --include-values --query 'items[?name==`task-management-api-key`].value' --output text
 ```
 
 ### Environment Variables
@@ -376,6 +402,14 @@ No environment-specific configuration required. The stack uses CloudFormation ps
 ### POST /tasks
 
 Create a new task and add it to the processing queue.
+
+**Authentication:** Requires API key via `x-api-key` header
+
+**Request Headers:**
+```
+x-api-key: your-api-key-here
+Content-Type: application/json
+```
 
 **Request Body:**
 
@@ -411,6 +445,7 @@ Create a new task and add it to the processing queue.
 **Error Responses:**
 
 - `400 Bad Request` - Invalid input (missing fields, wrong types, validation errors)
+- `403 Forbidden` - Missing or invalid API key
 - `500 Internal Server Error` - Server error (queue unavailable, etc.)
 
 ### GET /health
@@ -463,7 +498,7 @@ os.environ["LOG_LEVEL"] = "DEBUG"
 
 Current test coverage: **90%+**
 
-### API Lambda Tests (20 tests)
+### API Lambda Tests (26 tests)
 - ✅ Health endpoint
 - ✅ Task creation (success cases)
 - ✅ Input validation (all required fields)
@@ -474,6 +509,13 @@ Current test coverage: **90%+**
 - ✅ Unique ID generation
 - ✅ Timestamp generation
 - ✅ ISO 8601 date validation
+- ✅ **API key authentication (6 tests)**
+  - Missing API key rejection (403)
+  - Invalid API key rejection (403)
+  - Valid API key acceptance (201)
+  - Health endpoint without API key
+  - Docs endpoint without API key
+  - Protected vs public endpoints
 
 ### Processor Lambda Tests (9 tests)
 - ✅ Successful task processing
@@ -492,17 +534,22 @@ Current test coverage: **90%+**
 
 ### Implemented Security Features
 
-1. **Input Validation**: Pydantic models with strict validation rules
-2. **Input Sanitization**: Automatic whitespace trimming, length limits
-3. **Least Privilege IAM**: Minimal permissions for each Lambda function
-4. **CORS Configuration**: Configured with appropriate headers
-5. **No Hardcoded Secrets**: All configuration via environment variables
-6. **X-Ray Tracing**: Enabled for security monitoring and debugging
+1. **API Key Authentication**: API Gateway API key with usage plan and rate limiting (Bonus Feature)
+   - 100 requests/second rate limit
+   - 200 burst limit
+   - 10,000 requests/day quota
+2. **Input Validation**: Pydantic models with strict validation rules
+3. **Input Sanitization**: Automatic whitespace trimming, length limits
+4. **Least Privilege IAM**: Minimal permissions for each Lambda function
+5. **CORS Configuration**: Configured with appropriate headers
+6. **No Hardcoded Secrets**: All configuration via environment variables
+7. **X-Ray Tracing**: Enabled for security monitoring and debugging
 
 ### Production Recommendations
 
-- Add API authentication (AWS Cognito, API Keys, or custom authorizer)
-- Implement rate limiting and throttling
+- ✅ **API authentication implemented** - API Gateway API keys with rate limiting
+- ✅ **Rate limiting implemented** - 100 req/sec with 200 burst limit
+- Consider upgrading to AWS Cognito for user-based authentication
 - Add request validation at API Gateway level
 - Enable AWS WAF for API Gateway
 - Implement encryption at rest for SQS queues

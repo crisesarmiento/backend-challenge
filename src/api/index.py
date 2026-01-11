@@ -76,6 +76,67 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# ========================================
+# API Key Authentication Middleware
+# ========================================
+# Note: In production deployment, API Gateway handles authentication.
+# This middleware simulates API Gateway behavior for testing purposes.
+from fastapi import Request
+
+ENABLE_API_KEY_CHECK = os.getenv("ENABLE_API_KEY_CHECK", "false").lower() == "true"
+VALID_API_KEY = os.getenv("API_KEY", "test-api-key-12345")
+
+
+@app.middleware("http")
+async def validate_api_key(request: Request, call_next):
+    """
+    Middleware to validate API key in x-api-key header.
+    
+    In production, API Gateway validates the API key before reaching Lambda.
+    This middleware simulates that behavior for testing.
+    """
+    # Skip authentication for health endpoint and docs
+    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
+        return await call_next(request)
+    
+    # Only check API key if enabled (for testing)
+    if ENABLE_API_KEY_CHECK:
+        api_key = request.headers.get("x-api-key")
+        
+        if not api_key:
+            logger.warning(
+                "Missing API key",
+                extra={"path": request.url.path, "method": request.method}
+            )
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={
+                    "error": "Forbidden",
+                    "message": "Missing API Key. Include x-api-key header."
+                },
+            )
+        
+        if api_key != VALID_API_KEY:
+            logger.warning(
+                "Invalid API key",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "api_key_provided": api_key[:8] + "..." if len(api_key) > 8 else api_key
+                }
+            )
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={
+                    "error": "Forbidden",
+                    "message": "Invalid API Key."
+                },
+            )
+        
+        logger.debug("API key validated", extra={"path": request.url.path})
+    
+    return await call_next(request)
+
 
 # ========================================
 # Exception Handlers

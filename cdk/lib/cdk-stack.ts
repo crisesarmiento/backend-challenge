@@ -86,6 +86,37 @@ export class CdkStack extends cdk.Stack {
       },
     });
 
+    // ========================================
+    // 4.1. API Key Authentication (Bonus Feature)
+    // ========================================
+    const apiKey = api.addApiKey('TaskApiKey', {
+      apiKeyName: 'task-management-api-key',
+      description: 'API key for Task Management API',
+    });
+
+    // Create usage plan
+    const usagePlan = api.addUsagePlan('TaskApiUsagePlan', {
+      name: 'Task API Usage Plan',
+      description: 'Usage plan for Task Management API',
+      apiStages: [
+        {
+          api: api,
+          stage: api.deploymentStage,
+        },
+      ],
+      throttle: {
+        rateLimit: 100, // requests per second
+        burstLimit: 200, // maximum concurrent requests
+      },
+      quota: {
+        limit: 10000, // requests per period
+        period: apigateway.Period.DAY,
+      },
+    });
+
+    // Associate API key with usage plan
+    usagePlan.addApiKey(apiKey);
+
     // Create /tasks resource
     const tasksResource = api.root.addResource('tasks');
 
@@ -108,9 +139,11 @@ export class CdkStack extends cdk.Stack {
     });
 
     tasksResource.addMethod('POST', apiIntegration, {
+      apiKeyRequired: true, // Require API key for this endpoint
       methodResponses: [
         { statusCode: '200' },
         { statusCode: '400' },
+        { statusCode: '403' }, // Add 403 for unauthorized
         { statusCode: '500' },
       ],
     });
@@ -166,6 +199,12 @@ export class CdkStack extends cdk.Stack {
       value: api.url,
       description: 'API Gateway endpoint URL',
       exportName: 'TaskApiEndpoint',
+    });
+
+    new cdk.CfnOutput(this, 'ApiKeyId', {
+      value: apiKey.keyId,
+      description: 'API Key ID (use AWS CLI to retrieve actual key value)',
+      exportName: 'TaskApiKeyId',
     });
 
     new cdk.CfnOutput(this, 'QueueUrl', {
