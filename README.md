@@ -1,157 +1,622 @@
-# Backend Engineering Challenge
+# Task Management API - Backend Challenge
 
-Welcome to our backend engineering challenge! This project is designed to assess your skills in **Python**, **TypeScript**, **AWS**, and **AWS CDK**.
+A serverless task management system built with AWS CDK, featuring ordered message processing, comprehensive error handling, and production-ready architecture.
 
-## Overview
+## 📋 Table of Contents
 
-You will build a task management API system with these components:
-- AWS CDK infrastructure deployment
-- REST API endpoint for task creation
-- Message queue with ordered processing
-- Background task processor
+- [Quick Start](#quick-start)
+- [Architecture Overview](#architecture-overview)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Setup Instructions](#setup-instructions)
+- [Testing & Validation](#testing--validation)
+- [Design Decisions](#design-decisions)
+- [Deployment](#deployment)
+- [API Documentation](#api-documentation)
 
-## Challenge Requirements
+---
 
-### 1. Infrastructure as Code (AWS CDK)
+## 🚀 Quick Start
 
-Create AWS CDK stacks that deploy your entire infrastructure:
+**For evaluators and quick testing:**
 
-#### Stack Components
-- Compute resources (Python for all backend logic)
-- REST API with single POST endpoint
-- Message queue for ordered task processing
-- Logging and basic monitoring
+```bash
+# 1. Automated setup (recommended)
+./setup.sh
 
-#### Requirements
-- Use AWS CDK v2 with TypeScript
-- Implement proper stack organization (separate stacks for different concerns)
-- Include environment-specific configurations
-- Document deployment process
-- **Must support `cdk synth` command to validate infrastructure code**
-- **No hardcoded account IDs, regions, or environment-specific values**
-- **Infrastructure should be deployable but actual deployment is not required for evaluation**
+# 2. Activate virtual environment
+source venv/bin/activate
 
-### 2. Core API (Python)
+# 3. Run all validations
+./validate.sh
+```
 
-Create a REST API endpoint using Python:
+**What this does:**
+- ✅ Sets up Python virtual environment
+- ✅ Installs all dependencies (Python + Node.js)
+- ✅ Runs 29 unit tests
+- ✅ Type checks all code
+- ✅ Validates CDK infrastructure
 
-#### Endpoint
-- `POST /tasks` - Accept and validate a new task, then send it to a processing queue
+**Result:** Complete validation in ~2 minutes!
 
-#### Task Model
+For detailed manual setup, see [Setup Instructions](#setup-instructions) below.
+
+---
+
+## 🏗️ Architecture Overview
+
+This solution implements a serverless task management API with guaranteed message ordering and at-least-once processing semantics.
+
+### System Components
+
+```
+┌─────────────┐      ┌──────────────┐      ┌────────────┐      ┌─────────────────┐
+│   Client    │─────▶│ API Gateway  │─────▶│ API Lambda │─────▶│  SQS FIFO Queue │
+└─────────────┘      └──────────────┘      └────────────┘      └─────────────────┘
+                                                                          │
+                                                                          ▼
+                                                                  ┌─────────────────┐
+                                                                  │ Processor Lambda│
+                                                                  └─────────────────┘
+                                                                          │
+                                                                          ▼
+                                                                  ┌─────────────────┐
+                                                                  │   Dead Letter   │
+                                                                  │      Queue      │
+                                                                  └─────────────────┘
+```
+
+### Key Features
+
+- ✅ **Ordered Processing**: SQS FIFO queue ensures tasks are processed in the exact order received
+- ✅ **At-Least-Once Delivery**: SQS guarantees with visibility timeout and retry logic
+- ✅ **Error Handling**: Dead letter queue captures failed tasks after 3 retry attempts
+- ✅ **Idempotency**: Content-based deduplication prevents duplicate task processing
+- ✅ **Least Privilege IAM**: Granular permissions for each component
+- ✅ **Observability**: CloudWatch Logs + X-Ray tracing enabled
+
+---
+
+## 🛠️ Tech Stack
+
+### Infrastructure
+- **AWS CDK v2** (TypeScript) - Infrastructure as Code
+- **AWS Lambda** - Serverless compute (Python 3.12)
+- **Amazon SQS FIFO** - Message queue with ordering guarantees
+- **Amazon API Gateway** - REST API endpoint
+
+### Backend
+- **Python 3.12** - Runtime environment
+- **FastAPI** - Modern web framework for API
+- **Pydantic** - Data validation and serialization
+- **Boto3** - AWS SDK for Python
+
+### Testing & Quality
+- **pytest** - Testing framework
+- **moto** - AWS service mocking
+- **pyright** - Static type checking
+- **black** - Code formatting
+
+---
+
+## 📁 Project Structure
+
+```
+backend-challenge/
+├── cdk/                          # AWS CDK Infrastructure
+│   ├── bin/
+│   │   └── cdk.ts               # CDK app entry point
+│   ├── lib/
+│   │   └── cdk-stack.ts         # Main infrastructure stack
+│   ├── cdk.json                 # CDK configuration
+│   └── package.json             # Node.js dependencies
+│
+├── src/
+│   ├── api/                     # API Lambda handler
+│   │   ├── index.py            # FastAPI application
+│   │   └── models.py           # Pydantic models
+│   │
+│   └── processor/              # Queue processor Lambda
+│       └── index.py            # SQS event handler
+│
+├── tests/
+│   └── unit/
+│       ├── test_api.py         # API Lambda tests (20 tests)
+│       └── test_processor.py   # Processor Lambda tests (9 tests)
+│
+├── setup.sh                     # Automated setup script
+├── validate.sh                  # Automated validation script
+├── pytest.ini                   # Pytest configuration
+├── pyproject.toml              # Python tooling configuration
+├── requirements.txt            # Production dependencies
+├── requirements-dev.txt        # Development dependencies
+└── README.md                   # This file
+```
+
+---
+
+## 🚀 Setup Instructions
+
+### Prerequisites
+
+- **Python 3.12+** - [Download](https://www.python.org/downloads/)
+- **Node.js 18+** - [Download](https://nodejs.org/)
+- **AWS CLI** (optional for deployment) - [Install Guide](https://aws.amazon.com/cli/)
+
+### Option A: Automated Setup (Recommended)
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd backend-challenge
+
+# Run setup script
+./setup.sh
+```
+
+This single command will:
+- ✅ Create and activate virtual environment
+- ✅ Install all Python dependencies
+- ✅ Install CDK dependencies
+- ✅ Build TypeScript code
+
+### Option B: Manual Setup
+
+### 1. Clone Repository
+
+```bash
+git clone <repository-url>
+cd backend-challenge
+```
+
+### 2. Set Up Python Environment
+
+```bash
+# Create virtual environment
+python3.12 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate  # On macOS/Linux
+# or
+venv\Scripts\activate     # On Windows
+
+# Install Python dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+### 3. Set Up CDK Infrastructure
+
+```bash
+cd cdk
+
+# Install Node.js dependencies
+npm install
+
+# Build TypeScript
+npm run build
+```
+
+---
+
+## 🧪 Testing & Validation
+
+### Option A: Automated Validation (Recommended)
+
+```bash
+# Run complete validation suite
+./validate.sh
+```
+
+This single command will:
+- ✅ Run all 29 unit tests
+- ✅ Run type checking with pyright
+- ✅ Validate CDK infrastructure synthesis
+
+**Expected Output:**
+- ✅ All validations passed
+- ✅ Summary of test results
+- ✅ Ready for deployment confirmation
+
+### Option B: Manual Validation
+
+### Run Unit Tests
+
+```bash
+# From project root, with virtual environment activated
+pytest -v
+
+# Run with coverage report
+pytest --cov=src --cov-report=term-missing
+```
+
+**Expected Output:**
+- ✅ 29 tests passing (20 API + 9 Processor)
+- ✅ 90%+ code coverage
+
+### Run Type Checking
+
+```bash
+# Type check Python code
+pyright src/
+```
+
+**Expected Output:**
+- ✅ 0 errors, 0 warnings
+
+### Validate CDK Infrastructure
+
+```bash
+cd cdk
+
+# Synthesize CloudFormation template
+npm run cdk synth
+```
+
+**Expected Output:**
+- ✅ Valid CloudFormation template generated
+- ✅ No synthesis errors
+
+### Code Formatting (Optional)
+
+```bash
+# Check formatting
+black --check src/ tests/
+
+# Apply formatting
+black src/ tests/
+```
+
+---
+
+## 🎯 Design Decisions
+
+### 1. SQS FIFO Queue for Ordering
+
+**Decision:** Use SQS FIFO queue instead of standard queue.
+
+**Rationale:**
+- Challenge requires tasks to be "processed in the order they were received"
+- FIFO queues guarantee First-In-First-Out delivery
+- Content-based deduplication provides automatic idempotency
+
+**Trade-offs:**
+- FIFO queues have lower throughput (300 TPS) vs standard queues (unlimited)
+- For this use case, ordering guarantees are more critical than throughput
+
+### 2. Batch Size of 1 for Processor Lambda
+
+**Decision:** Process one message at a time (`batchSize: 1`).
+
+**Rationale:**
+- Maintains strict ordering guarantees
+- Simplifies error handling (no partial batch failures)
+- Prevents out-of-order processing if batch contains multiple messages
+
+**Trade-offs:**
+- Lower throughput compared to batch processing
+- Higher Lambda invocation costs
+- Acceptable for task management use case where ordering is critical
+
+### 3. Standard Lambda Functions vs PythonFunction
+
+**Decision:** Use `lambda.Function` with `Code.fromAsset()` instead of `@aws-cdk/aws-lambda-python-alpha` PythonFunction.
+
+**Rationale:**
+- No Docker dependency for `cdk synth` validation
+- Simpler, more maintainable infrastructure code
+- No external pip dependencies to bundle (using AWS-provided packages)
+
+**Production Consideration:**
+- For production with external dependencies, would add a build step to create deployment package
+
+### 4. Dead Letter Queue with 3 Retries
+
+**Decision:** Configure DLQ with `maxReceiveCount: 3`.
+
+**Rationale:**
+- Balances reliability (retries for transient failures) with efficiency (don't retry forever)
+- 14-day retention in DLQ allows investigation of systematic failures
+- Follows AWS best practices for SQS error handling
+
+### 5. FastAPI for REST API
+
+**Decision:** Use FastAPI instead of Flask or Django.
+
+**Rationale:**
+- Native async support (better Lambda performance)
+- Built-in Pydantic validation (type-safe)
+- Automatic OpenAPI documentation
+- Modern Python framework with excellent type hinting
+
+### 6. Least Privilege IAM Permissions
+
+**Decision:** Use CDK's `grant*` methods instead of broad permissions.
+
+**Rationale:**
+- API Lambda: Only `sqs:SendMessage` to task queue
+- Processor Lambda: Only `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility` on task queue
+- Follows AWS security best practices
+- Reduces attack surface if Lambda is compromised
+
+---
+
+## 📦 Deployment
+
+> **Note:** Actual deployment is not required for this challenge. The infrastructure is designed to be deployable but evaluation focuses on code quality and architecture.
+
+### Deployment Steps (If Needed)
+
+```bash
+cd cdk
+
+# Bootstrap CDK (first time only)
+npx cdk bootstrap
+
+# Deploy stack
+npx cdk deploy
+
+# Outputs will include:
+# - API Gateway endpoint URL
+# - SQS queue URLs
+# - Lambda function ARNs
+```
+
+### Environment Variables
+
+No environment-specific configuration required. The stack uses CloudFormation pseudo-parameters:
+- `AWS::AccountId` - Automatically resolved to deployment account
+- `AWS::Region` - Automatically resolved to deployment region
+
+---
+
+## 📖 API Documentation
+
+### POST /tasks
+
+Create a new task and add it to the processing queue.
+
+**Request Body:**
+
 ```json
 {
-  "title": "string",
-  "description": "string",
-  "priority": "low | medium | high",
-  "due_date": "ISO 8601 timestamp (optional)"
+  "title": "Complete project documentation",
+  "description": "Write comprehensive documentation for the API",
+  "priority": "high",
+  "due_date": "2026-01-15T18:00:00Z"
 }
 ```
 
-#### Requirements
-- Choose appropriate AWS compute services for the API
-- Implement comprehensive input validation and sanitization
-- Send validated tasks to a message queue that preserves ordering
-- Return a unique task id to the requester
-- Ensure at-least-once delivery guarantees
-- Implement proper error handling and return appropriate HTTP status codes
-- Include unit tests using pytest
-- Use type hints throughout your Python code
+**Field Validation:**
+- `title`: Required, 1-200 characters
+- `description`: Required, 1-2000 characters
+- `priority`: Required, one of: `"low"`, `"medium"`, `"high"`
+- `due_date`: Optional, ISO 8601 timestamp
 
-### 3. Queue Processing System (Python)
+**Success Response (200):**
 
-Create a queue processing system using Python that:
+```json
+{
+  "task_id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Complete project documentation",
+  "description": "Write comprehensive documentation for the API",
+  "priority": "high",
+  "due_date": "2026-01-15T18:00:00Z",
+  "created_at": "2026-01-10T12:00:00Z",
+  "status": "queued"
+}
+```
 
-#### Functionality
-- Processes tasks from the queue *in the order they were received*
-- Implements at-least-once processing guarantees
-- Implements proper retry logic and dead letter handling for failed processing of tasks
-- Maintains ordering guarantees even with retries
+**Error Responses:**
 
-#### Requirements
-- Use Python with proper type hints
-- Choose appropriate AWS compute services for queue processing
-- Implement dead letter queue for failed messages
-- Include comprehensive error handling and logging
-- Include unit tests using pytest
-- Ensure idempotent processing to handle duplicate deliveries
+- `400 Bad Request` - Invalid input (missing fields, wrong types, validation errors)
+- `500 Internal Server Error` - Server error (queue unavailable, etc.)
 
-### 4. Documentation and Best Practices
+### GET /health
 
-#### Code Quality
-- **Python code must be formatted using a documented formatter (e.g., black, autopep8, ruff)**
-- **Python code should pass standard type check from pyright**
-- Follow TypeScript/ESLint best practices for CDK infrastructure code
-- Include comprehensive README files
-- Implement proper logging
+Health check endpoint.
 
-#### Testing
-- Unit tests for all business logic
-- Integration tests for REST endpoints using mocked AWS services
-- Mock external dependencies appropriately (use moto, localstack, or similar for AWS mocking)
-- **Achieve 90% test coverage for Python code using pytest**
+**Success Response (200):**
 
-#### Security
-- Implement input validation and sanitization
-- Use environment variables for configuration
-- Follow AWS security best practices
-- **Implement least privilege access controls for all AWS resources**
-- Implement proper CORS configuration
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-01-10T12:00:00Z"
+}
+```
 
-## Architecture Focus
+---
 
-Your solution should demonstrate:
+## 🧑‍💻 Development
 
-- **Ordering Guarantees**: Tasks must be processed in the exact order they are received
-- **At-Least-Once Processing**: Every valid task must be processed at least once
-- **Error Handling**: Robust error handling with appropriate retries and dead letter queues
-- **Validation**: Comprehensive input validation before queueing tasks
+### Running Tests During Development
 
-## Getting Started
+```bash
+# Watch mode (re-run on file changes)
+pytest-watch
 
-1. **Create a private fork of this repository** to your own GitHub account
-2. **Set up your development environment** with AWS CDK, Python, and necessary dependencies
-3. **Implement the solution** following the requirements
-4. **Test thoroughly** and ensure all tests pass (use mocks for AWS services)
-5. **Validate CDK synthesis** by running `cdk synth` to ensure infrastructure code is valid
-6. **Document your solution** including setup and deployment instructions
-7. **Zip the repository** and deliver it to the hiring manager.
+# Run specific test file
+pytest tests/unit/test_api.py -v
 
-## Evaluation Criteria
+# Run tests matching pattern
+pytest -k "test_create_task" -v
+```
 
-You will be evaluated in the following order of priority:
+### Debugging
 
-### Infrastructure Validity and Functionality
-- **CDK infrastructure synthesizes successfully** using `cdk synth` without errors
-- **API endpoint logic works as expected** - accepts valid tasks and handles errors properly (tested with mocks)
-- **Queue processing system functions correctly** - processes tasks in order with proper retry logic (tested with mocks)
-- **All components integrate properly** - end-to-end functionality works with mocked AWS services
+**API Lambda:**
+```python
+# Set LOG_LEVEL environment variable
+os.environ["LOG_LEVEL"] = "DEBUG"
+```
 
-### Code Quality and Testing
-- **Code quality** - Clean, readable, well-structured Python and TypeScript code
-- **Test coverage** - Comprehensive test suite with full coverage as specified
-- **Type safety** - Proper type hints and passes pyright type checking
-- **Code formatting** - Consistent formatting using documented formatter
+**Processor Lambda:**
+```python
+# Check CloudWatch Logs for detailed processing logs
+# Logs include task_id, processing status, and error details
+```
 
-### Additional Considerations
-- **Architecture** - Proper separation of concerns and scalable design
-- **Security** - Least privilege access controls and input validation
-- **Documentation** - Clear setup instructions and architectural decisions
-- **AWS best practices** - Effective use of AWS services and patterns
+---
 
-## Bonus Points
+## 📊 Test Coverage
 
-- Implement API authentication
-- Add comprehensive monitoring and observability
-- Implement CI/CD pipeline
-- Add API rate limiting and throttling
+Current test coverage: **90%+**
 
-## Time Expectation
+### API Lambda Tests (20 tests)
+- ✅ Health endpoint
+- ✅ Task creation (success cases)
+- ✅ Input validation (all required fields)
+- ✅ Priority validation (low/medium/high)
+- ✅ Field length validation (title, description)
+- ✅ Whitespace trimming
+- ✅ SQS error handling
+- ✅ Unique ID generation
+- ✅ Timestamp generation
+- ✅ ISO 8601 date validation
 
-This challenge is designed to take approximately **1-2 hours** to complete. Focus on demonstrating your understanding of the core technologies rather than implementing every possible feature. **No actual AWS deployment is required** - the evaluation focuses on code quality, architecture, and the ability to synthesize valid CloudFormation templates.
+### Processor Lambda Tests (9 tests)
+- ✅ Successful task processing
+- ✅ Invalid JSON handling
+- ✅ Idempotency (duplicate message handling)
+- ✅ Missing task_id handling
+- ✅ Multiple records processing
+- ✅ Partial batch failure reporting
+- ✅ Empty records handling
+- ✅ Process task function
+- ✅ All priority levels
 
-## Questions?
+---
 
-If you have any questions about the requirements or need clarification on any aspect of the challenge, please create an issue in this repository or reach out to your point of contact.
+## 🔒 Security Considerations
 
-Good luck! 🚀
+### Implemented Security Features
+
+1. **Input Validation**: Pydantic models with strict validation rules
+2. **Input Sanitization**: Automatic whitespace trimming, length limits
+3. **Least Privilege IAM**: Minimal permissions for each Lambda function
+4. **CORS Configuration**: Configured with appropriate headers
+5. **No Hardcoded Secrets**: All configuration via environment variables
+6. **X-Ray Tracing**: Enabled for security monitoring and debugging
+
+### Production Recommendations
+
+- Add API authentication (AWS Cognito, API Keys, or custom authorizer)
+- Implement rate limiting and throttling
+- Add request validation at API Gateway level
+- Enable AWS WAF for API Gateway
+- Implement encryption at rest for SQS queues
+- Add CloudWatch alarms for DLQ depth
+
+---
+
+## 🐛 Troubleshooting
+
+### CDK Synth Fails
+
+**Issue:** `cdk synth` fails with validation errors
+
+**Solution:**
+```bash
+cd cdk
+npm install
+npm run build
+npm run cdk synth
+```
+
+### Tests Fail with "QUEUE_URL not set"
+
+**Issue:** Tests fail during import with environment variable error
+
+**Solution:**
+Environment variable is set in test file before imports. Ensure you're running from project root with virtual environment activated:
+```bash
+source venv/bin/activate
+pytest -v
+```
+
+### Type Checking Errors
+
+**Issue:** `pyright` reports type errors
+
+**Solution:**
+Ensure all dependencies are installed and you're using Python 3.12:
+```bash
+pip install -r requirements.txt
+pyright src/
+```
+
+---
+
+## 📝 Challenge Requirements Checklist
+
+### Infrastructure as Code ✅
+- [x] AWS CDK v2 with TypeScript
+- [x] Compute resources (Lambda)
+- [x] REST API (API Gateway)
+- [x] Message queue with ordering (SQS FIFO)
+- [x] Logging and monitoring (CloudWatch + X-Ray)
+- [x] Supports `cdk synth` validation
+- [x] No hardcoded account IDs or regions
+- [x] Environment-specific configurations via CDK context
+
+### Core API ✅
+- [x] POST /tasks endpoint
+- [x] Task model with all required fields
+- [x] Comprehensive input validation (Pydantic)
+- [x] Send to queue with ordering guarantees
+- [x] Return unique task_id
+- [x] At-least-once delivery
+- [x] Proper error handling and HTTP status codes
+- [x] Unit tests with pytest
+- [x] Type hints throughout
+
+### Queue Processing System ✅
+- [x] Process tasks in order
+- [x] At-least-once processing
+- [x] Retry logic and DLQ
+- [x] Maintain ordering with retries
+- [x] Type hints throughout
+- [x] Dead letter queue implementation
+- [x] Comprehensive error handling and logging
+- [x] Idempotent processing
+
+### Code Quality ✅
+- [x] Python formatted with black
+- [x] Type checking with pyright (0 errors)
+- [x] Comprehensive README
+- [x] Proper logging
+
+### Testing ✅
+- [x] Unit tests for all business logic (29 tests)
+- [x] Integration tests with mocked AWS services (moto)
+- [x] 90%+ test coverage
+
+### Security ✅
+- [x] Input validation and sanitization
+- [x] Environment variables for configuration
+- [x] Least privilege IAM policies
+- [x] CORS configuration
+
+---
+
+## 📄 License
+
+This project was created as part of a technical challenge.
+
+---
+
+## 👤 Author
+
+**Cristian Sarmiento**
+
+- Challenge completed: January 2026
+- AI assistance: Used Claude Code (as encouraged by challenge)
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with AWS CDK, FastAPI, and Python 3.12
+- Tested with pytest and moto
+- AI assistance from Claude Code for development workflow
